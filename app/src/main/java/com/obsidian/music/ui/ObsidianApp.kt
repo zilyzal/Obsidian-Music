@@ -1,8 +1,14 @@
 package com.obsidian.music.ui
 
 import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -41,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -52,6 +59,12 @@ import com.obsidian.music.PlayerViewModel
 private val audioPermission =
     if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO
     else Manifest.permission.READ_EXTERNAL_STORAGE
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
 
 @Composable
 fun ObsidianApp(vm: PlayerViewModel) {
@@ -65,8 +78,13 @@ fun ObsidianApp(vm: PlayerViewModel) {
     var expanded by remember { mutableStateOf(false) }
     var position by remember { mutableLongStateOf(0L) }
 
-    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
-        hasAudio = result[audioPermission] == true
+    var asked by remember { mutableStateOf(false) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        // Re-check the real state: the result map only holds what was requested, so a
+        // notifications-only request would otherwise look like "audio denied".
+        asked = true
+        hasAudio = ContextCompat.checkSelfPermission(context, audioPermission) == PackageManager.PERMISSION_GRANTED
         if (hasAudio) vm.loadLibrary()
     }
 
@@ -111,7 +129,19 @@ fun ObsidianApp(vm: PlayerViewModel) {
                 body = "Obsidian plays the songs already on your phone. Allow access to your audio files to get started.",
                 action = "Allow access",
                 accent = accent,
-            ) { permissionLauncher.launch(arrayOf(audioPermission)) }
+            ) {
+                // After the system stops showing the dialog, the only way forward is app settings.
+                val activity = context.findActivity()
+                val blocked = asked && activity != null &&
+                    !ActivityCompat.shouldShowRequestPermissionRationale(activity, audioPermission)
+                if (blocked) {
+                    context.startActivity(
+                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+                    )
+                } else {
+                    permissionLauncher.launch(arrayOf(audioPermission))
+                }
+            }
 
             state.loading && state.tracks.isEmpty() ->
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

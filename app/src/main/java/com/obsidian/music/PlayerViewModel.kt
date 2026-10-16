@@ -77,7 +77,11 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
         val tracks = _state.value.tracks
         val index = tracks.indexOfFirst { it.id == track.id }
         if (index < 0) return
-        if (!queueLoaded || c.mediaItemCount != tracks.size) {
+        // Reuse the running queue only if it still matches the list (same size is not enough
+        // when songs were added and removed between scans).
+        val aligned = queueLoaded && c.mediaItemCount == tracks.size &&
+            c.getMediaItemAt(index).mediaId == track.id.toString()
+        if (!aligned) {
             c.setMediaItems(tracks.map(::toMediaItem), index, 0L)
             queueLoaded = true
         } else {
