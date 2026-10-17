@@ -1,0 +1,43 @@
+name: Fetch fonts (one-off)
+
+# Downloads Manrope and Sora (SIL Open Font License) from the Google Fonts repository
+# and commits them into the app. Runs once when this file is pushed, then gets removed.
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/fetch-fonts.yml"]
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Manrope and Sora
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=https://raw.githubusercontent.com/google/fonts/main/ofl
+          mkdir -p app/src/main/res/font licenses
+          curl -fsSL --retry 3 "$base/manrope/Manrope%5Bwght%5D.ttf" -o app/src/main/res/font/manrope.ttf
+          curl -fsSL --retry 3 "$base/sora/Sora%5Bwght%5D.ttf" -o app/src/main/res/font/sora.ttf
+          curl -fsSL --retry 3 "$base/manrope/OFL.txt" -o licenses/Manrope-OFL.txt
+          curl -fsSL --retry 3 "$base/sora/OFL.txt" -o licenses/Sora-OFL.txt
+          ls -l app/src/main/res/font licenses
+          for f in app/src/main/res/font/*.ttf; do
+            magic=$(head -c4 "$f" | od -An -tx1 | tr -d ' \n')
+            echo "$f magic=$magic"
+            [ "$magic" = "00010000" ] || { echo "::error::$f is not a TrueType font"; exit 1; }
+          done
+
+      - name: Commit fonts
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/res/font licenses
+          git commit -m "Add Manrope and Sora fonts (SIL OFL)"
+          git push
