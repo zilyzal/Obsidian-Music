@@ -36,6 +36,8 @@ data class PlayerUiState(
     val isPlaying: Boolean = false,
     val shuffle: Boolean = false,
     val durationMs: Long = 0L,
+    /** Name of the view the queue was started from ("Latest", "Favorites", ...), shown in the player. */
+    val playingFrom: String? = null,
 ) {
     fun arrangedWith(
         library: List<Track> = this.library,
@@ -62,6 +64,9 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Ids of the songs currently queued in the player, in list order. */
     private var queueIds: List<Long> = emptyList()
+
+    /** Library by id, so every player event finds the current song without scanning the list. */
+    private var libraryById: Map<Long, Track> = emptyMap()
 
     private val playerListener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) {
@@ -91,6 +96,7 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
                 _state.update { it.copy(loading = false) }
                 return@launch
             }
+            libraryById = library.associateBy { it.id }
             _state.update { it.arrangedWith(library = library).copy(loading = false) }
             controller?.let { syncFromPlayer(it) }
         }
@@ -122,6 +128,7 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
         } else {
             c.seekTo(index, 0L)
         }
+        _state.update { it.copy(playingFrom = it.view.label) }
         c.prepare()
         c.play()
     }
@@ -135,6 +142,7 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
         c.shuffleModeEnabled = true
         c.setMediaItems(tracks.map(::toMediaItem), start, 0L)
         queueIds = tracks.map { it.id }
+        _state.update { it.copy(playingFrom = it.view.label) }
         c.prepare()
         c.play()
     }
@@ -178,7 +186,7 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { s ->
             s.copy(
                 // Look in the whole library so the song stays "current" even when a filter hides it.
-                current = currentId?.let { id -> s.library.firstOrNull { it.id == id } } ?: s.current,
+                current = currentId?.let { id -> libraryById[id] } ?: s.current,
                 isPlaying = p.isPlaying,
                 shuffle = p.shuffleModeEnabled,
                 durationMs = p.duration.takeIf { it > 0 } ?: s.current?.durationMs ?: 0L,

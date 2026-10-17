@@ -15,11 +15,11 @@ import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,7 +37,6 @@ import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,8 +52,10 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -69,6 +70,7 @@ fun NowPlaying(
     shuffle: Boolean,
     favorite: Boolean,
     accent: Color,
+    playingFrom: String,
     durationMs: Long,
     positionProvider: () -> Long,
     onSeek: (Long) -> Unit,
@@ -110,14 +112,14 @@ fun NowPlaying(
                 },
             )
     ) {
-        AmbientBackground(accent)
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.22f)))
+        AmbientBackground(accent, backdrop = Backdrop.Player)
+        Box(Modifier.fillMaxSize().background(Obsidian.Base.copy(alpha = 0.22f)))
 
         Column(
             Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(horizontal = 28.dp),
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(
@@ -126,105 +128,134 @@ fun NowPlaying(
                     .padding(top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                GlassIconButton(Icons.Rounded.KeyboardArrowDown, "Close", 44, onClose)
-                Text(
-                    "Now playing",
-                    modifier = Modifier.weight(1f),
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Obsidian.TextSecondary,
-                )
-                Spacer(Modifier.size(44.dp))
+                GlassIconButton(Icons.Rounded.KeyboardArrowDown, "Close player", onClose)
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "PLAYING FROM",
+                        style = ObsidianType.Overline,
+                        color = Obsidian.TextSecondary,
+                    )
+                    Text(
+                        playingFrom,
+                        style = ObsidianType.MiniTitle,
+                        color = Obsidian.TextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+                Spacer(Modifier.size(46.dp))
             }
 
-            Spacer(Modifier.weight(0.6f))
-
-            Artwork(
-                track,
-                RoundedCornerShape(32.dp),
+            // The artwork takes whatever room is left and stays square, so short screens still fit.
+            BoxWithConstraints(
                 Modifier
+                    .weight(1f)
                     .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .graphicsLayer { scaleX = artScale; scaleY = artScale }
-                    .shadow(32.dp, RoundedCornerShape(32.dp), ambientColor = accent, spotColor = accent),
-            )
+                    .padding(horizontal = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                val side = minOf(maxWidth, (maxHeight - 24.dp).coerceAtLeast(0.dp))
+                val shape = RoundedCornerShape(38.dp)
+                Artwork(
+                    track,
+                    shape,
+                    Modifier
+                        .size(side)
+                        .graphicsLayer { scaleX = artScale; scaleY = artScale }
+                        .shadow(36.dp, shape, ambientColor = accent, spotColor = accent),
+                    large = true,
+                )
+            }
 
-            Spacer(Modifier.weight(0.7f))
+            Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+                Text(
+                    track.title,
+                    style = ObsidianType.PlayerTitle,
+                    color = Obsidian.TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    track.artist,
+                    style = ObsidianType.PlayerArtist,
+                    color = Obsidian.TextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 2.dp),
+                )
+                Spacer(Modifier.height(20.dp))
+                GlassSeekBar(positionProvider, durationMs, accent, onSeek)
+            }
 
-            Text(
-                track.title,
-                style = MaterialTheme.typography.headlineSmall,
-                color = Obsidian.TextPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Text(
-                track.artist,
-                style = MaterialTheme.typography.titleMedium,
-                color = Obsidian.TextSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 2.dp),
-            )
-
-            Spacer(Modifier.height(22.dp))
-
-            GlassSeekBar(positionProvider, durationMs, accent, onSeek)
-
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(12.dp))
 
             Row(
-                Modifier.fillMaxWidth(),
+                Modifier
+                    .fillMaxWidth()
+                    .height(88.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 val shuffleTint by animateColorAsState(
                     if (shuffle) accent else Obsidian.TextTertiary, tween(250), label = "shuffleTint",
                 )
-                Icon(
-                    Icons.Rounded.Shuffle,
-                    contentDescription = "Shuffle",
-                    tint = shuffleTint,
-                    modifier = Modifier
-                        .bouncyClick(0.85f, onShuffle)
-                        .padding(12.dp)
-                        .size(24.dp),
-                )
-                Icon(
-                    Icons.Rounded.SkipPrevious,
-                    contentDescription = "Previous",
-                    tint = Obsidian.TextPrimary,
-                    modifier = Modifier
-                        .bouncyClick(0.85f, onPrevious)
-                        .padding(10.dp)
-                        .size(40.dp),
-                )
                 Box(
                     Modifier
-                        .size(76.dp)
+                        .size(48.dp)
+                        .bouncyClick(0.85f, onShuffle),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Rounded.Shuffle,
+                        contentDescription = if (shuffle) "Shuffle on" else "Shuffle off",
+                        tint = shuffleTint,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+                Box(
+                    Modifier
+                        .size(56.dp)
+                        .bouncyClick(0.85f, onPrevious),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Rounded.SkipPrevious,
+                        contentDescription = "Previous",
+                        tint = Obsidian.TextPrimary,
+                        modifier = Modifier.size(38.dp),
+                    )
+                }
+                Box(
+                    Modifier
+                        .size(88.dp)
+                        .shadow(24.dp, CircleShape, ambientColor = accent, spotColor = accent)
                         .bouncyClick(0.92f, onToggle)
-                        .glass(CircleShape, fillAlpha = 0.14f, borderAlpha = 0.5f)
-                        .background(accent.copy(alpha = 0.28f)),
+                        .glassPanel(CircleShape, accent, tintAlpha = 0.42f, sheen = 0.26f, edge = 0.50f),
                     contentAlignment = Alignment.Center,
                 ) {
                     PlayPauseIcon(isPlaying, size = 38, tint = Color.White)
                 }
-                Icon(
-                    Icons.Rounded.SkipNext,
-                    contentDescription = "Next",
-                    tint = Obsidian.TextPrimary,
-                    modifier = Modifier
-                        .bouncyClick(0.85f, onNext)
-                        .padding(10.dp)
-                        .size(40.dp),
-                )
+                Box(
+                    Modifier
+                        .size(56.dp)
+                        .bouncyClick(0.85f, onNext),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Rounded.SkipNext,
+                        contentDescription = "Next",
+                        tint = Obsidian.TextPrimary,
+                        modifier = Modifier.size(38.dp),
+                    )
+                }
                 FavoriteStar(favorite = favorite, onClick = onFavorite)
             }
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
@@ -248,32 +279,36 @@ private fun FavoriteStar(favorite: Boolean, onClick: () -> Unit) {
         tween(220),
         label = "starTint",
     )
-    Icon(
-        if (favorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
-        contentDescription = if (favorite) "Remove from favorites" else "Add to favorites",
-        tint = tint,
-        modifier = Modifier
+    Box(
+        Modifier
+            .size(48.dp)
             .graphicsLayer { scaleX = pop.value; scaleY = pop.value }
-            .bouncyClick(0.85f, onClick)
-            .padding(12.dp)
-            .size(24.dp),
-    )
+            .bouncyClick(0.85f, onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            if (favorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+            contentDescription = if (favorite) "Remove from favorites" else "Add to favorites",
+            tint = tint,
+            modifier = Modifier.size(27.dp),
+        )
+    }
 }
 
 @Composable
-fun GlassIconButton(icon: androidx.compose.ui.graphics.vector.ImageVector, description: String, size: Int, onClick: () -> Unit) {
+fun GlassIconButton(icon: ImageVector, description: String, onClick: () -> Unit) {
     Box(
         Modifier
-            .size(size.dp)
+            .size(46.dp)
             .bouncyClick(0.9f, onClick)
             .glass(CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = description, tint = Obsidian.TextPrimary, modifier = Modifier.size((size * 0.55f).dp))
+        Icon(icon, contentDescription = description, tint = Obsidian.TextPrimary, modifier = Modifier.size(26.dp))
     }
 }
 
-/** Slim glass seek bar: tap to jump, drag to scrub. The thumb swells while touched. */
+/** Slim seek bar: tap to jump, drag to scrub. The thumb swells while touched. */
 @Composable
 private fun GlassSeekBar(
     positionProvider: () -> Long,
@@ -284,7 +319,7 @@ private fun GlassSeekBar(
     var dragFraction by remember { mutableStateOf<Float?>(null) }
     val dragging = dragFraction != null
     val thumb by animateDpAsState(
-        if (dragging) 16.dp else 10.dp,
+        if (dragging) 22.dp else 18.dp,
         spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium),
         label = "thumb",
     )
@@ -315,27 +350,39 @@ private fun GlassSeekBar(
                     val f = dragFraction ?: (positionProvider().toFloat() / dur).coerceIn(0f, 1f)
                     val h = 6.dp.toPx()
                     val y = (size.height - h) / 2f
+                    val r = thumb.toPx() / 2f
+                    // Keep the thumb inside the bar's ends.
+                    val x = r + (size.width - 2f * r) * f
                     drawRoundRect(
-                        Color.White.copy(alpha = 0.14f),
+                        Color.White.copy(alpha = 0.16f),
                         topLeft = Offset(0f, y), size = Size(size.width, h),
                         cornerRadius = CornerRadius(h / 2),
                     )
                     drawRoundRect(
-                        accent,
-                        topLeft = Offset(0f, y), size = Size(size.width * f, h),
+                        Brush.horizontalGradient(
+                            listOf(accent, Color(0xFFEDE6FF)),
+                            startX = 0f,
+                            endX = size.width.coerceAtLeast(1f),
+                        ),
+                        topLeft = Offset(0f, y), size = Size(x, h),
                         cornerRadius = CornerRadius(h / 2),
                     )
                     drawCircle(
+                        accent.copy(alpha = 0.30f),
+                        radius = r + 4.dp.toPx(),
+                        center = Offset(x, size.height / 2f),
+                    )
+                    drawCircle(
                         Color.White,
-                        radius = thumb.toPx() / 2f,
-                        center = Offset(size.width * f, size.height / 2f),
+                        radius = r,
+                        center = Offset(x, size.height / 2f),
                     )
                 }
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             val shown = dragFraction?.let { (it * dur).toLong() } ?: positionProvider()
-            Text(formatTime(shown), style = MaterialTheme.typography.labelMedium, color = Obsidian.TextTertiary)
-            Text(formatTime(dur), style = MaterialTheme.typography.labelMedium, color = Obsidian.TextTertiary)
+            Text(formatTime(shown), style = ObsidianType.Duration, color = Obsidian.TextSecondary)
+            Text(formatTime(dur), style = ObsidianType.Duration, color = Obsidian.TextSecondary)
         }
     }
 }

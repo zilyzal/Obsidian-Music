@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,17 +22,17 @@ import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.obsidian.music.data.Track
@@ -48,70 +49,102 @@ fun MiniPlayer(
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(26.dp)
-    Box(
+    val shape = RoundedCornerShape(28.dp)
+    Row(
         modifier
             .padding(horizontal = 14.dp)
             .fillMaxWidth()
+            .height(68.dp)
             .bouncyClick(pressedScale = 0.985f, onClick = onOpen)
             .shadow(
                 elevation = 18.dp,
                 shape = shape,
-                ambientColor = accent.copy(alpha = 0.5f),
-                spotColor = accent.copy(alpha = 0.5f),
+                ambientColor = Color.Black,
+                spotColor = Color.Black,
             )
             // Opaque glass: list text can no longer show through and clash with the title.
-            .glassPanel(shape, tint = accent, tintAlpha = 0.18f, borderAlpha = 0.42f)
-            // Progress hairline is drawn in the draw phase, so ticking position never recomposes the bar.
-            .drawBehind {
-                val d = durationMs.coerceAtLeast(1L).toFloat()
-                val f = (positionProvider() / d).coerceIn(0f, 1f)
-                val inset = 22.dp.toPx()
-                val w = size.width - inset * 2
-                val y = size.height - 5.dp.toPx()
-                drawRoundRect(
-                    Color.White.copy(alpha = 0.10f),
-                    topLeft = Offset(inset, y), size = Size(w, 2.dp.toPx()),
-                    cornerRadius = CornerRadius(1.dp.toPx()),
-                )
-                drawRoundRect(
-                    accent,
-                    topLeft = Offset(inset, y), size = Size(w * f, 2.dp.toPx()),
-                    cornerRadius = CornerRadius(1.dp.toPx()),
-                )
-            }
-            .padding(start = 10.dp, end = 8.dp, top = 8.dp, bottom = 12.dp),
+            .glassPanel(shape, tint = accent, tintAlpha = 0.16f, sheen = 0.11f, edge = 0.34f)
+            .padding(start = 10.dp, end = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Artwork(track, RoundedCornerShape(16.dp), Modifier.size(50.dp))
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    track.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Obsidian.TextPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    track.artist,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Obsidian.TextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            PlayPauseIcon(isPlaying, Modifier.bouncyClick(0.88f, onToggle).padding(10.dp), size = 30)
+        Artwork(track, RoundedCornerShape(16.dp), Modifier.size(48.dp))
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                track.title,
+                style = ObsidianType.MiniTitle,
+                color = Obsidian.TextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                track.artist,
+                style = ObsidianType.MiniSub,
+                color = Obsidian.TextSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        PlayRing(isPlaying, accent, positionProvider, durationMs, onToggle)
+        Box(
+            Modifier
+                .size(44.dp)
+                .bouncyClick(0.85f, onNext),
+            contentAlignment = Alignment.Center,
+        ) {
             Icon(
                 Icons.Rounded.SkipNext,
                 contentDescription = "Next",
                 tint = Obsidian.TextPrimary,
-                modifier = Modifier
-                    .bouncyClick(0.85f, onNext)
-                    .padding(10.dp)
-                    .size(28.dp),
+                modifier = Modifier.size(28.dp),
             )
         }
+    }
+}
+
+/**
+ * Play/pause with the song's progress drawn as a ring around it. The ring is painted in the
+ * draw phase, so the ticking position never recomposes anything.
+ */
+@Composable
+private fun PlayRing(
+    isPlaying: Boolean,
+    accent: Color,
+    positionProvider: () -> Long,
+    durationMs: Long,
+    onToggle: () -> Unit,
+) {
+    Box(
+        Modifier
+            .size(46.dp)
+            .bouncyClick(0.9f, onToggle)
+            .drawBehind {
+                val stroke = 2.5.dp.toPx()
+                val topLeft = Offset(stroke / 2f, stroke / 2f)
+                val arc = Size(size.width - stroke, size.height - stroke)
+                drawArc(
+                    color = Color.White.copy(alpha = 0.14f),
+                    startAngle = 0f,
+                    sweepAngle = 360f,
+                    useCenter = false,
+                    topLeft = topLeft,
+                    size = arc,
+                    style = Stroke(stroke),
+                )
+                val f = (positionProvider() / durationMs.coerceAtLeast(1L).toFloat()).coerceIn(0f, 1f)
+                drawArc(
+                    color = accent,
+                    startAngle = -90f,
+                    sweepAngle = 360f * f,
+                    useCenter = false,
+                    topLeft = topLeft,
+                    size = arc,
+                    style = Stroke(stroke, cap = StrokeCap.Round),
+                )
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        PlayPauseIcon(isPlaying, size = 22)
     }
 }
 

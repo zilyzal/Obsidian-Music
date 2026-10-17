@@ -52,9 +52,27 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/') || inputs.tag != ''
         run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/ObsidianMusic.apk
 
-      - name: Attach APK to GitHub release
-        if: startsWith(github.ref, 'refs/tags/') || inputs.tag != ''
+      # A pushed tag creates a new release, named and described from release-notes/<tag>.md.
+      - name: Write release notes
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          notes="release-notes/${GITHUB_REF_NAME}.md"
+          if [ -f "$notes" ]; then cp "$notes" "$RUNNER_TEMP/notes.md"; else echo "Obsidian Music ${GITHUB_REF_NAME}" > "$RUNNER_TEMP/notes.md"; fi
+
+      - name: Create release with APK
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.tag || github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          name: Obsidian Music ${{ github.ref_name }}
+          body_path: ${{ runner.temp }}/notes.md
+          files: app/build/outputs/apk/release/ObsidianMusic.apk
+
+      # Manual run with a tag: refreshes the APK on an existing release and touches nothing else.
+      - name: Attach APK to existing release
+        if: ${{ !startsWith(github.ref, 'refs/tags/') && inputs.tag != '' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
           files: app/build/outputs/apk/release/ObsidianMusic.apk

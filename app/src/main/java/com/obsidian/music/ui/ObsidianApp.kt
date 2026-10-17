@@ -21,9 +21,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,11 +30,9 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,7 +45,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -79,31 +74,23 @@ fun ObsidianApp(vm: PlayerViewModel) {
     var hasAudio by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, audioPermission) == PackageManager.PERMISSION_GRANTED)
     }
+    // True once Android will no longer show the permission dialog: the only way forward is Settings.
+    var blocked by remember { mutableStateOf(false) }
     var expanded by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
     var position by remember { mutableLongStateOf(0L) }
 
-    var asked by remember { mutableStateOf(false) }
-
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-        // Re-check the real state: the result map only holds what was requested, so a
-        // notifications-only request would otherwise look like "audio denied".
-        asked = true
+        // Re-check the real state: the result map only holds what was requested.
         hasAudio = ContextCompat.checkSelfPermission(context, audioPermission) == PackageManager.PERMISSION_GRANTED
+        val activity = context.findActivity()
+        blocked = !hasAudio && activity != null &&
+            !ActivityCompat.shouldShowRequestPermissionRationale(activity, audioPermission)
         if (hasAudio) vm.loadLibrary()
     }
 
-    // Ask once on first launch; the notification permission is what lets the media notification show on Android 13+.
-    LaunchedEffect(Unit) {
-        val wanted = buildList {
-            if (!hasAudio) add(audioPermission)
-            if (Build.VERSION.SDK_INT >= 33 &&
-                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-            ) add(Manifest.permission.POST_NOTIFICATIONS)
-        }
-        if (wanted.isNotEmpty()) permissionLauncher.launch(wanted.toTypedArray())
-    }
-
-    // Pick up newly added songs whenever the app comes back to the foreground.
+    // Pick up newly added songs whenever the app comes back to the foreground
+    // (this also catches the person returning from Settings after allowing access).
     LifecycleEventEffect(Lifecycle.Event.ON_START) {
         hasAudio = ContextCompat.checkSelfPermission(context, audioPermission) == PackageManager.PERMISSION_GRANTED
         if (hasAudio) vm.loadLibrary()
@@ -125,25 +112,23 @@ fun ObsidianApp(vm: PlayerViewModel) {
     val current = state.current
 
     Box(Modifier.fillMaxSize()) {
-        AmbientBackground(accent)
+        AmbientBackground(accent, backdrop = if (hasAudio) Backdrop.Home else Backdrop.Welcome)
 
         when {
-            !hasAudio -> MessageCard(
-                title = "Let's find your music",
-                body = "Obsidian plays the songs already on your phone. Allow access to your audio files to get started.",
-                action = "Allow access",
-                accent = accent,
-            ) {
-                // After the system stops showing the dialog, the only way forward is app settings.
-                val activity = context.findActivity()
-                val blocked = asked && activity != null &&
-                    !ActivityCompat.shouldShowRequestPermissionRationale(activity, audioPermission)
+            !hasAudio -> WelcomeScreen(accent = accent, blocked = blocked) {
                 if (blocked) {
                     context.startActivity(
                         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
                     )
                 } else {
-                    permissionLauncher.launch(arrayOf(audioPermission))
+                    // Notifications are what lets the media notification show on Android 13+.
+                    val wanted = buildList {
+                        add(audioPermission)
+                        if (Build.VERSION.SDK_INT >= 33 &&
+                            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                        ) add(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                    permissionLauncher.launch(wanted.toTypedArray())
                 }
             }
 
@@ -153,12 +138,19 @@ fun ObsidianApp(vm: PlayerViewModel) {
                 }
 
             // Judge the whole library, so an empty Favorites list still shows the home screen.
-            state.library.isEmpty() -> MessageCard(
-                title = "No music yet",
-                body = "Add some songs to your phone and they'll show up here, newest first.",
-                action = "Scan again",
-                accent = accent,
-            ) { vm.loadLibrary() }
+            state.library.isEmpty() -> Box(
+                Modifier.fillMaxSize().padding(horizontal = 32.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                StateCard(
+                    icon = Icons.Rounded.MusicNote,
+                    title = "No music yet",
+                    body = "Add some songs to your phone and they'll show up here, newest first.",
+                    accent = accent,
+                    actionLabel = "Scan again",
+                    onAction = vm::loadLibrary,
+                )
+            }
 
             else -> HomeScreen(
                 tracks = state.tracks,
@@ -168,6 +160,8 @@ fun ObsidianApp(vm: PlayerViewModel) {
                 shuffle = state.shuffle,
                 accent = accent,
                 bottomPadding = if (current != null) 96.dp else 0.dp,
+                menuOpen = menuOpen,
+                onMenuOpenChange = { menuOpen = it },
                 onViewChange = vm::setView,
                 onPlay = vm::play,
                 onShufflePlay = vm::shufflePlay,
@@ -185,11 +179,11 @@ fun ObsidianApp(vm: PlayerViewModel) {
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .height(150.dp)
+                    .height(176.dp)
                     .background(
                         Brush.verticalGradient(
                             0f to Color.Transparent,
-                            0.65f to Obsidian.Base.copy(alpha = 0.85f),
+                            0.52f to Obsidian.Base.copy(alpha = 0.88f),
                             1f to Obsidian.Base,
                         )
                     )
@@ -219,6 +213,16 @@ fun ObsidianApp(vm: PlayerViewModel) {
             }
         }
 
+        // Dims everything while the view menu is open. The menu itself and a raised copy of the
+        // pill live in a popup window above this, so they stay bright.
+        AnimatedVisibility(
+            visible = menuOpen,
+            enter = fadeIn(tween(160)),
+            exit = fadeOut(tween(140)),
+        ) {
+            Box(Modifier.fillMaxSize().background(Obsidian.Scrim))
+        }
+
         AnimatedVisibility(
             visible = expanded && current != null,
             enter = slideInVertically(spring(dampingRatio = 0.88f, stiffness = 420f)) { it } + fadeIn(tween(180)),
@@ -231,6 +235,7 @@ fun ObsidianApp(vm: PlayerViewModel) {
                     shuffle = state.shuffle,
                     favorite = t.id in state.favorites,
                     accent = accent,
+                    playingFrom = state.playingFrom ?: "Your music",
                     durationMs = state.durationMs,
                     positionProvider = { position },
                     onSeek = { ms -> vm.seekTo(ms); position = ms },
@@ -241,38 +246,6 @@ fun ObsidianApp(vm: PlayerViewModel) {
                     onFavorite = { vm.toggleFavorite(t) },
                     onClose = { expanded = false },
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun MessageCard(
-    title: String,
-    body: String,
-    action: String,
-    accent: androidx.compose.ui.graphics.Color,
-    onAction: () -> Unit,
-) {
-    Box(Modifier.fillMaxSize().padding(28.dp), contentAlignment = Alignment.Center) {
-        Column(
-            Modifier
-                .glass(RoundedCornerShape(32.dp), fillAlpha = 0.09f)
-                .padding(28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(title, style = MaterialTheme.typography.headlineSmall, color = Obsidian.TextPrimary, textAlign = TextAlign.Center)
-            Text(body, style = MaterialTheme.typography.bodyMedium, color = Obsidian.TextSecondary, textAlign = TextAlign.Center)
-            Box(
-                Modifier
-                    .padding(top = 12.dp)
-                    .bouncyClick(0.94f, onAction)
-                    .glass(CircleShape, fillAlpha = 0.14f, borderAlpha = 0.5f)
-                    .background(accent.copy(alpha = 0.35f))
-                    .padding(horizontal = 28.dp, vertical = 14.dp),
-            ) {
-                Text(action, style = MaterialTheme.typography.titleMedium, color = Obsidian.TextPrimary)
             }
         }
     }

@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTextApi::class)
+
 package com.obsidian.music.ui
 
 import androidx.compose.material3.MaterialTheme
@@ -5,18 +7,111 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.obsidian.music.R
 
 object Obsidian {
     val Base = Color(0xFF08080C)
-    val Surface = Color(0xFF111118)
-    val Accent = Color(0xFF8B7CFF)
+    val Surface = Color(0xFF14141D)
+    val Accent = Color(0xFFA78BFA)
+    val Glacier = Color(0xFF4E78A8)
     val TextPrimary = Color(0xFFF4F3FA)
-    val TextSecondary = Color(0xB3F4F3FA)
-    val TextTertiary = Color(0x73F4F3FA)
+    val TextSecondary = Color(0xA8F4F3FA) // 66%
+    val TextTertiary = Color(0x85F4F3FA) // 52%
+    val Scrim = Color(0xA8050509)
+    val Ink = Color(0xFF0B0B12)
+}
+
+// One variable font file per family; each weight is a variation of it.
+private fun variable(resId: Int, weight: FontWeight) =
+    Font(resId, weight, variationSettings = FontVariation.Settings(FontVariation.weight(weight.weight)))
+
+private val Manrope = FontFamily(
+    variable(R.font.manrope, FontWeight.Normal),
+    variable(R.font.manrope, FontWeight.Medium),
+    variable(R.font.manrope, FontWeight.SemiBold),
+    variable(R.font.manrope, FontWeight.Bold),
+)
+
+private val Sora = FontFamily(
+    variable(R.font.sora, FontWeight.Medium),
+    variable(R.font.sora, FontWeight.SemiBold),
+    variable(R.font.sora, FontWeight.Bold),
+)
+
+/** Sora for headers and titles, Manrope for everything you read in a list. */
+object ObsidianType {
+    val Pill = TextStyle(
+        fontFamily = Sora, fontWeight = FontWeight.SemiBold,
+        fontSize = 24.sp, lineHeight = 24.sp, letterSpacing = (-0.02).em,
+    )
+    val CardTitle = TextStyle(
+        fontFamily = Sora, fontWeight = FontWeight.SemiBold,
+        fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = (-0.02).em,
+    )
+    val Welcome = TextStyle(
+        fontFamily = Sora, fontWeight = FontWeight.SemiBold,
+        fontSize = 30.sp, lineHeight = 36.sp, letterSpacing = (-0.025).em,
+    )
+    val PlayerTitle = TextStyle(
+        fontFamily = Sora, fontWeight = FontWeight.SemiBold,
+        fontSize = 27.sp, lineHeight = 32.sp, letterSpacing = (-0.02).em,
+    )
+    val PlayerArtist = TextStyle(
+        fontFamily = Manrope, fontWeight = FontWeight.Medium,
+        fontSize = 16.sp, lineHeight = 22.sp,
+    )
+    val RowTitle = TextStyle(
+        fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
+        fontSize = 16.sp, lineHeight = 21.sp,
+    )
+    val RowSub = TextStyle(
+        fontFamily = Manrope, fontWeight = FontWeight.Medium,
+        fontSize = 14.sp, lineHeight = 19.sp,
+    )
+    val Duration = TextStyle(
+        fontFamily = Manrope, fontWeight = FontWeight.Medium,
+        fontSize = 13.sp, lineHeight = 16.sp, fontFeatureSettings = "tnum",
+    )
+    val MiniTitle = TextStyle(
+        fontFamily = Manrope, fontWeight = FontWeight.SemiBold,
+        fontSize = 15.sp, lineHeight = 20.sp,
+    )
+    val MiniSub = TextStyle(
+        fontFamily = Manrope, fontWeight = FontWeight.Medium,
+        fontSize = 13.sp, lineHeight = 18.sp,
+    )
+    val Overline = TextStyle(
+        fontFamily = Manrope, fontWeight = FontWeight.Bold,
+        fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.14.em,
+    )
+    val Body = TextStyle(
+        fontFamily = Manrope, fontWeight = FontWeight.Medium,
+        fontSize = 16.sp, lineHeight = 24.sp,
+    )
+    val BodySmall = TextStyle(
+        fontFamily = Manrope, fontWeight = FontWeight.Medium,
+        fontSize = 15.sp, lineHeight = 22.sp,
+    )
+    val Button = TextStyle(
+        fontFamily = Manrope, fontWeight = FontWeight.Bold,
+        fontSize = 15.sp, lineHeight = 15.sp,
+    )
+    val ButtonLarge = TextStyle(
+        fontFamily = Manrope, fontWeight = FontWeight.Bold,
+        fontSize = 17.sp, lineHeight = 17.sp,
+    )
+    val Caption = TextStyle(
+        fontFamily = Manrope, fontWeight = FontWeight.Medium,
+        fontSize = 13.sp, lineHeight = 18.sp,
+    )
 }
 
 private val scheme = darkColorScheme(
@@ -29,26 +124,10 @@ private val scheme = darkColorScheme(
 )
 
 private val type = Typography(
-    displayMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold,
-        fontSize = 34.sp, lineHeight = 40.sp, letterSpacing = (-0.8).sp,
-    ),
-    headlineSmall = TextStyle(
-        fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold,
-        fontSize = 24.sp, lineHeight = 30.sp, letterSpacing = (-0.4).sp,
-    ),
-    titleMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold,
-        fontSize = 16.sp, lineHeight = 21.sp, letterSpacing = (-0.1).sp,
-    ),
-    bodyMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Normal,
-        fontSize = 14.sp, lineHeight = 19.sp,
-    ),
-    labelMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium,
-        fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.2.sp,
-    ),
+    headlineSmall = ObsidianType.Pill,
+    titleMedium = ObsidianType.RowTitle,
+    bodyMedium = ObsidianType.RowSub,
+    labelMedium = ObsidianType.Duration,
 )
 
 @Composable
