@@ -38,7 +38,10 @@ class Art(val bitmap: Bitmap, val accent: Color)
 
 /** Loads embedded or album artwork once per album and keeps a small in-memory cache. */
 object ArtworkLoader {
-    private val cache = object : LruCache<Long, Art>(48) {}
+    // Sized in bytes, not entries: caps artwork memory at 24 MB however big the covers are.
+    private val cache = object : LruCache<Long, Art>(24 * 1024 * 1024) {
+        override fun sizeOf(key: Long, value: Art): Int = value.bitmap.byteCount
+    }
     private val misses = HashSet<Long>()
 
     private fun key(t: Track) = if (t.albumId != 0L) t.albumId else -t.id

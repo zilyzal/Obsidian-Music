@@ -1,9 +1,24 @@
-<p align="center"><img src="docs/logo.png" width="128" alt="Obsidian Music"></p>
+<p align="center"><img src="docs/banner.jpg" alt="Obsidian Music" width="720"></p>
 
-# Obsidian Music
+<h1 align="center">Obsidian Music</h1>
 
-A simple, beautiful local music player for Android with a glass interface.
-It plays the songs already on your phone, newest first, and stays out of your way.
+<p align="center">
+  A simple, beautiful local music player for Android with a glass interface.<br>
+  It plays the songs already on your phone, newest first, and stays out of your way.
+</p>
+
+<p align="center">
+  <a href="https://github.com/zilyzal/Obsidian-Music/releases/download/1.0.0/ObsidianMusic.apk"><b>Download the APK</b></a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/zilyzal/Obsidian-Music/releases">All releases</a>
+</p>
+
+## Install
+
+1. Open the download link above on your phone and tap the file when it finishes.
+2. Android asks once to allow installs from your browser. Allow it.
+3. If Play Protect warns about an unknown developer, choose **Install anyway** (the APK is signed with a debug key).
+4. Open Obsidian Music and allow access to your audio files and notifications.
 
 ## Features
 
@@ -28,7 +43,9 @@ Requires JDK 17 and the Android SDK (Android Studio handles both).
 
 Output: `app/build/outputs/apk/`.
 
-GitHub Actions builds the release APK on every push to `main` (see the **Actions** tab, artifact `ObsidianMusic-release`). Push a tag like `v1.0.0` and the APK is attached to a GitHub release.
+The app icon source is `docs/logo.png`; the launcher icon lives in `app/src/main/res/drawable-nodpi/`.
+
+GitHub Actions builds the release APK on every push to `main` (see the **Actions** tab, artifact `ObsidianMusic-release`). Push any tag (for example `v1.0.0`) and the APK is attached to a GitHub release. To refresh the APK on an existing release, run the workflow manually and enter its tag name.
 
 Minimum Android version: 8.0 (API 26). Target: Android 15 (API 35).
 

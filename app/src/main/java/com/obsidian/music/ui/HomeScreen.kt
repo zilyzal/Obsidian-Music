@@ -270,7 +270,7 @@ private fun MenuRow(view: LibraryView, selected: Boolean, accent: Color, onClick
         Icon(
             view.icon(),
             contentDescription = null,
-            tint = if (view == LibraryView.FAVORITES) Obsidian.Star else Obsidian.TextSecondary,
+            tint = Obsidian.TextSecondary,
             modifier = Modifier.size(20.dp),
         )
         Spacer(Modifier.width(14.dp))
@@ -333,7 +333,7 @@ private fun EmptyFavorites() {
         Icon(
             Icons.Rounded.Star,
             contentDescription = null,
-            tint = Obsidian.Star.copy(alpha = 0.7f),
+            tint = Obsidian.TextTertiary,
             modifier = Modifier.size(36.dp),
         )
         Text(

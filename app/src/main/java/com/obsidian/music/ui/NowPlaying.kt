@@ -243,7 +243,8 @@ private fun FavoriteStar(favorite: Boolean, onClick: () -> Unit) {
         }
     }
     val tint by animateColorAsState(
-        if (favorite) Obsidian.Star else Obsidian.TextTertiary,
+        // Same neutral tones as the other controls: filled and bright when starred.
+        if (favorite) Obsidian.TextPrimary else Obsidian.TextTertiary,
         tween(220),
         label = "starTint",
     )
