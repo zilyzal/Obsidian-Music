@@ -209,6 +209,7 @@ fun ObsidianApp(vm: PlayerViewModel) {
                     onOpen = { expanded = true },
                     onToggle = vm::togglePlayPause,
                     onNext = vm::next,
+                    onPrevious = vm::previous,
                 )
             }
         }

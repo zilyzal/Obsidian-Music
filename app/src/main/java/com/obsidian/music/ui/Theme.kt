@@ -50,7 +50,7 @@ private val Sora = FontFamily(
 object ObsidianType {
     val Pill = TextStyle(
         fontFamily = Sora, fontWeight = FontWeight.SemiBold,
-        fontSize = 24.sp, lineHeight = 24.sp, letterSpacing = (-0.02).em,
+        fontSize = 19.sp, lineHeight = 22.sp, letterSpacing = (-0.015).em,
     )
     val CardTitle = TextStyle(
         fontFamily = Sora, fontWeight = FontWeight.SemiBold,

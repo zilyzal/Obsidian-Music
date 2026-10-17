@@ -127,8 +127,10 @@ fun HomeScreen(
             TrackRow(
                 track = track,
                 isCurrent = track.id == current?.id,
-                isPlaying = isPlaying,
-                accent = accent,
+                // Only the playing row needs to know about play/pause or the accent, so
+                // the rest of the list is skipped when they change.
+                isPlaying = isPlaying && track.id == current?.id,
+                accent = if (track.id == current?.id) accent else Obsidian.Accent,
                 onClick = { onPlay(track) },
                 modifier = Modifier.animateItem(),
             )
@@ -245,10 +247,10 @@ private fun PillBody(view: LibraryView, accent: Color, open: Boolean, modifier: 
     Row(
         modifier
             .then(look)
-            .height(46.dp)
-            .padding(start = 22.dp, end = 14.dp),
+            .height(40.dp)
+            .padding(start = 16.dp, end = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         AnimatedContent(
             targetState = view,
@@ -262,7 +264,7 @@ private fun PillBody(view: LibraryView, accent: Color, open: Boolean, modifier: 
             contentDescription = if (open) "Close menu" else "Change view",
             tint = if (open) Obsidian.TextPrimary else Obsidian.TextSecondary,
             modifier = Modifier
-                .size(24.dp)
+                .size(20.dp)
                 .graphicsLayer { rotationZ = chevron },
         )
     }
@@ -358,6 +360,7 @@ private fun LibraryView.icon(): ImageVector = when (this) {
     LibraryView.LONGEST -> Icons.Rounded.Timer
 }
 
+/** Round glass button, icon only. Lit with the accent while shuffle is on. */
 @Composable
 private fun ShufflePill(active: Boolean, enabled: Boolean, accent: Color, onClick: () -> Unit) {
     val tint by animateColorAsState(
@@ -365,18 +368,20 @@ private fun ShufflePill(active: Boolean, enabled: Boolean, accent: Color, onClic
         tween(300),
         label = "shuffleTint",
     )
-    Row(
+    Box(
         Modifier
             .alpha(if (enabled) 1f else 0.4f)
             .then(if (enabled) Modifier.bouncyClick(pressedScale = 0.92f, onClick = onClick) else Modifier)
-            .glass(CircleShape, tint = tint)
-            .height(46.dp)
-            .padding(horizontal = 18.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .size(40.dp)
+            .glass(CircleShape, tint = tint),
+        contentAlignment = Alignment.Center,
     ) {
-        Icon(Icons.Rounded.Shuffle, contentDescription = null, tint = Obsidian.TextPrimary, modifier = Modifier.size(19.dp))
-        Text("Shuffle", style = ObsidianType.Button, color = Obsidian.TextPrimary)
+        Icon(
+            Icons.Rounded.Shuffle,
+            contentDescription = "Shuffle play",
+            tint = Obsidian.TextPrimary,
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 

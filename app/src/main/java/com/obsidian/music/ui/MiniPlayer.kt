@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,6 +48,7 @@ fun MiniPlayer(
     onOpen: () -> Unit,
     onToggle: () -> Unit,
     onNext: () -> Unit,
+    onPrevious: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(28.dp)
@@ -64,12 +66,12 @@ fun MiniPlayer(
             )
             // Opaque glass: list text can no longer show through and clash with the title.
             .glassPanel(shape, tint = accent, tintAlpha = 0.16f, sheen = 0.11f, edge = 0.34f)
-            .padding(start = 10.dp, end = 10.dp),
+            .padding(start = 10.dp, end = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Artwork(track, RoundedCornerShape(16.dp), Modifier.size(48.dp))
         Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(1f).padding(end = 4.dp)) {
             Text(
                 track.title,
                 style = ObsidianType.MiniTitle,
@@ -85,10 +87,23 @@ fun MiniPlayer(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+        Box(
+            Modifier
+                .size(42.dp)
+                .bouncyClick(0.85f, onPrevious),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Rounded.SkipPrevious,
+                contentDescription = "Previous",
+                tint = Obsidian.TextPrimary,
+                modifier = Modifier.size(26.dp),
+            )
+        }
         PlayRing(isPlaying, accent, positionProvider, durationMs, onToggle)
         Box(
             Modifier
-                .size(44.dp)
+                .size(42.dp)
                 .bouncyClick(0.85f, onNext),
             contentAlignment = Alignment.Center,
         ) {
@@ -96,7 +111,7 @@ fun MiniPlayer(
                 Icons.Rounded.SkipNext,
                 contentDescription = "Next",
                 tint = Obsidian.TextPrimary,
-                modifier = Modifier.size(28.dp),
+                modifier = Modifier.size(26.dp),
             )
         }
     }

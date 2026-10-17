@@ -91,7 +91,7 @@ enum class Backdrop { Home, Player, Welcome }
 fun AmbientBackground(accent: Color, modifier: Modifier = Modifier, backdrop: Backdrop = Backdrop.Home) {
     val glowA by animateColorAsState(accent, tween(900), label = "glowA")
     val glowB by animateColorAsState(
-        lerp(Obsidian.Glacier, accent, 0.35f),
+        lerp(Obsidian.Glacier, accent, 0.45f),
         tween(1200),
         label = "glowB",
     )
@@ -113,14 +113,14 @@ fun AmbientBackground(accent: Color, modifier: Modifier = Modifier, backdrop: Ba
                 }
                 drawRect(
                     Brush.radialGradient(
-                        colors = listOf(glowA.copy(alpha = 0.36f), Color.Transparent),
+                        colors = listOf(glowA.copy(alpha = 0.48f), Color.Transparent),
                         center = Offset(size.width * ax, size.height * ay),
                         radius = big * ar,
                     )
                 )
                 drawRect(
                     Brush.radialGradient(
-                        colors = listOf(glowB.copy(alpha = 0.28f), Color.Transparent),
+                        colors = listOf(glowB.copy(alpha = 0.38f), Color.Transparent),
                         center = Offset(size.width * bx, size.height * by),
                         radius = big * br,
                     )
@@ -131,18 +131,18 @@ fun AmbientBackground(accent: Color, modifier: Modifier = Modifier, backdrop: Ba
                 fun at(x: Float, y: Float) = Offset(x * s, y * s)
                 when (backdrop) {
                     Backdrop.Home -> {
-                        shard(listOf(at(226f, 0f), at(390f, 0f), at(390f, 262f), at(316f, 148f)), tint, 0.20f, 1f)
-                        shard(listOf(at(292f, 0f), at(390f, 0f), at(390f, 118f)), tint, 0.20f, 1f)
-                        shard(listOf(at(316f, 148f), at(390f, 262f), at(350f, 226f)), tint, 0.20f, 0.7f)
+                        shard(listOf(at(226f, 0f), at(390f, 0f), at(390f, 262f), at(316f, 148f)), tint, 0.27f, 1f)
+                        shard(listOf(at(292f, 0f), at(390f, 0f), at(390f, 118f)), tint, 0.27f, 1f)
+                        shard(listOf(at(316f, 148f), at(390f, 262f), at(350f, 226f)), tint, 0.27f, 0.7f)
                     }
                     Backdrop.Player -> {
                         val t = Color(0xFFE7D6FF)
-                        shard(listOf(at(0f, 150f), at(120f, 60f), at(150f, 320f), at(0f, 420f)), t, 0.18f, 1f)
-                        shard(listOf(at(390f, 120f), at(270f, 230f), at(390f, 380f)), t, 0.18f, 1f)
+                        shard(listOf(at(0f, 150f), at(120f, 60f), at(150f, 320f), at(0f, 420f)), t, 0.25f, 1f)
+                        shard(listOf(at(390f, 120f), at(270f, 230f), at(390f, 380f)), t, 0.25f, 1f)
                     }
                     Backdrop.Welcome -> {
-                        shard(listOf(at(0f, 0f), at(150f, 0f), at(0f, 230f)), tint, 0.18f, 1f)
-                        shard(listOf(at(390f, 250f), at(390f, 520f), at(300f, 380f)), tint, 0.18f, 1f)
+                        shard(listOf(at(0f, 0f), at(150f, 0f), at(0f, 230f)), tint, 0.25f, 1f)
+                        shard(listOf(at(390f, 250f), at(390f, 520f), at(300f, 380f)), tint, 0.25f, 1f)
                     }
                 }
             }

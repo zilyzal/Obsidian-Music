@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/zilyzal/Obsidian-Music/releases/download/1.1.0/ObsidianMusic.apk"><b>Download the APK</b></a>
+  <a href="https://github.com/zilyzal/Obsidian-Music/releases/download/1.2.0/ObsidianMusic.apk"><b>Download the APK</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/zilyzal/Obsidian-Music/releases">All releases</a>
 </p>
@@ -29,7 +29,7 @@
 - **Auto-next**: a song ends, the next one starts. The queue loops at the end.
 - **Background playback**, **lockscreen controls**, and a **media notification** (play/pause, next, previous, seek) via a Media3 `MediaSessionService`. Headset and Bluetooth buttons work too.
 - **Glass UI** over a dark obsidian base, set in Sora and Manrope. Glow and accent colours follow the current album art.
-- **Fluid motion**: spring press feedback, a view menu that dims the screen, a mini player with a progress ring that expands into a full player, swipe down to dismiss, breathing artwork, scrubbable seek bar.
+- **Fluid motion**: spring press feedback, a view menu that dims the screen, a mini player with previous/play/next and a progress ring that expands into a full player, swipe down to dismiss, breathing artwork, scrubbable seek bar.
 - **Clear first launch**: a short screen explains the two permissions before Android asks for them.
 - **Light on battery**: one media query on open, no polling in the background, position updates only while a song is playing and the screen is on, row artwork decoded at list size, and no looping animations except the small equalizer on the playing row.
 

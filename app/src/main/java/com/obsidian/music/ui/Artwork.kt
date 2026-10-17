@@ -88,8 +88,8 @@ object ArtworkLoader {
         val hsl = FloatArray(3)
         ColorUtils.colorToHSL(rgb, hsl)
         if (hsl[1] < 0.10f) return Obsidian.Accent // greyscale cover: keep the house colour
-        hsl[1] = hsl[1].coerceAtLeast(0.35f)
-        hsl[2] = hsl[2].coerceIn(0.62f, 0.78f)
+        hsl[1] = hsl[1].coerceAtLeast(0.45f)
+        hsl[2] = hsl[2].coerceIn(0.60f, 0.76f)
         return Color(ColorUtils.HSLToColor(hsl))
     }
 
@@ -159,7 +159,8 @@ fun Artwork(track: Track?, shape: Shape, modifier: Modifier = Modifier, large: B
             value = null
         } else if (large) {
             value = ArtworkLoader.large(context, track) ?: ArtworkLoader.small(context, track)
-        } else {
+        } else if (value == null) {
+            // Rows scrolled back into view already hold their cover: nothing to load.
             value = ArtworkLoader.small(context, track)
         }
     }
