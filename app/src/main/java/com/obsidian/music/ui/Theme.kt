@@ -14,6 +14,7 @@ object Obsidian {
     val Base = Color(0xFF08080C)
     val Surface = Color(0xFF111118)
     val Accent = Color(0xFF8B7CFF)
+    val Star = Color(0xFFFFD36B)
     val TextPrimary = Color(0xFFF4F3FA)
     val TextSecondary = Color(0xB3F4F3FA)
     val TextTertiary = Color(0x73F4F3FA)

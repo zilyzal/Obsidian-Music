@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -44,6 +46,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -143,12 +147,13 @@ fun ObsidianApp(vm: PlayerViewModel) {
                 }
             }
 
-            state.loading && state.tracks.isEmpty() ->
+            state.loading && state.library.isEmpty() ->
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = accent, strokeWidth = 3.dp, modifier = Modifier.size(32.dp))
                 }
 
-            state.tracks.isEmpty() -> MessageCard(
+            // Judge the whole library, so an empty Favorites list still shows the home screen.
+            state.library.isEmpty() -> MessageCard(
                 title = "No music yet",
                 body = "Add some songs to your phone and they'll show up here, newest first.",
                 action = "Scan again",
@@ -157,13 +162,37 @@ fun ObsidianApp(vm: PlayerViewModel) {
 
             else -> HomeScreen(
                 tracks = state.tracks,
+                view = state.view,
                 current = current,
                 isPlaying = state.isPlaying,
                 shuffle = state.shuffle,
                 accent = accent,
-                bottomPadding = if (current != null) 88.dp else 0.dp,
+                bottomPadding = if (current != null) 96.dp else 0.dp,
+                onViewChange = vm::setView,
                 onPlay = vm::play,
                 onShufflePlay = vm::shufflePlay,
+            )
+        }
+
+        // Soft fade under the mini player so rows dissolve into the background instead of
+        // running right up to its edge.
+        AnimatedVisibility(
+            visible = current != null && !expanded && hasAudio && state.library.isNotEmpty(),
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = fadeIn(tween(300)),
+            exit = fadeOut(tween(200)),
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            0f to Color.Transparent,
+                            0.65f to Obsidian.Base.copy(alpha = 0.85f),
+                            1f to Obsidian.Base,
+                        )
+                    )
             )
         }
 
@@ -200,6 +229,7 @@ fun ObsidianApp(vm: PlayerViewModel) {
                     track = t,
                     isPlaying = state.isPlaying,
                     shuffle = state.shuffle,
+                    favorite = t.id in state.favorites,
                     accent = accent,
                     durationMs = state.durationMs,
                     positionProvider = { position },
@@ -208,6 +238,7 @@ fun ObsidianApp(vm: PlayerViewModel) {
                     onNext = vm::next,
                     onPrevious = vm::previous,
                     onShuffle = vm::toggleShuffle,
+                    onFavorite = { vm.toggleFavorite(t) },
                     onClose = { expanded = false },
                 )
             }

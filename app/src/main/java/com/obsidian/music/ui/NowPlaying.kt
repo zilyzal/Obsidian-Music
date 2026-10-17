@@ -34,10 +34,13 @@ import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +67,7 @@ fun NowPlaying(
     track: Track,
     isPlaying: Boolean,
     shuffle: Boolean,
+    favorite: Boolean,
     accent: Color,
     durationMs: Long,
     positionProvider: () -> Long,
@@ -72,6 +76,7 @@ fun NowPlaying(
     onNext: () -> Unit,
     onPrevious: () -> Unit,
     onShuffle: () -> Unit,
+    onFavorite: () -> Unit,
     onClose: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -216,12 +221,42 @@ fun NowPlaying(
                         .padding(10.dp)
                         .size(40.dp),
                 )
-                Spacer(Modifier.size(48.dp)) // balances the shuffle button
+                FavoriteStar(favorite = favorite, onClick = onFavorite)
             }
 
             Spacer(Modifier.height(28.dp))
         }
     }
+}
+
+/** Star that pops with a springy overshoot when a song is added to Favorites. */
+@Composable
+private fun FavoriteStar(favorite: Boolean, onClick: () -> Unit) {
+    val pop = remember { Animatable(1f) }
+    var first by remember { mutableStateOf(true) }
+    LaunchedEffect(favorite) {
+        if (first) {
+            first = false
+        } else if (favorite) {
+            pop.snapTo(0.6f)
+            pop.animateTo(1f, spring(dampingRatio = 0.35f, stiffness = Spring.StiffnessMedium))
+        }
+    }
+    val tint by animateColorAsState(
+        if (favorite) Obsidian.Star else Obsidian.TextTertiary,
+        tween(220),
+        label = "starTint",
+    )
+    Icon(
+        if (favorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+        contentDescription = if (favorite) "Remove from favorites" else "Add to favorites",
+        tint = tint,
+        modifier = Modifier
+            .graphicsLayer { scaleX = pop.value; scaleY = pop.value }
+            .bouncyClick(0.85f, onClick)
+            .padding(12.dp)
+            .size(24.dp),
+    )
 }
 
 @Composable

@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo.png" width="128" alt="Obsidian Music"></p>
+
 # Obsidian Music
 
 A simple, beautiful local music player for Android with a glass interface.
@@ -6,7 +8,8 @@ It plays the songs already on your phone, newest first, and stays out of your wa
 ## Features
 
 - **Scans your phone's music automatically** through the system media library (no folder picking).
-- **Latest first** by default, so new downloads are always at the top.
+- **Latest first** by default, so new downloads are always at the top. A glass dropdown switches the list to Favorites, A to Z, Artist, Oldest or Longest.
+- **Favorites**: tap the star in the full player (right of the controls) to keep a song in the Favorites view.
 - **Shuffle** from the home screen or the player; skips and auto-advance follow the shuffled order.
 - **Auto-next**: a song ends, the next one starts. The queue loops at the end.
 - **Background playback**, **lockscreen controls**, and a **media notification** (play/pause, next, previous, seek) via a Media3 `MediaSessionService`. Headset and Bluetooth buttons work too.

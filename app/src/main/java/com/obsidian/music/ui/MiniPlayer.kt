@@ -27,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -53,7 +54,14 @@ fun MiniPlayer(
             .padding(horizontal = 14.dp)
             .fillMaxWidth()
             .bouncyClick(pressedScale = 0.985f, onClick = onOpen)
-            .glass(shape, fillAlpha = 0.10f, borderAlpha = 0.38f)
+            .shadow(
+                elevation = 18.dp,
+                shape = shape,
+                ambientColor = accent.copy(alpha = 0.5f),
+                spotColor = accent.copy(alpha = 0.5f),
+            )
+            // Opaque glass: list text can no longer show through and clash with the title.
+            .glassPanel(shape, tint = accent, tintAlpha = 0.18f, borderAlpha = 0.42f)
             // Progress hairline is drawn in the draw phase, so ticking position never recomposes the bar.
             .drawBehind {
                 val d = durationMs.coerceAtLeast(1L).toFloat()

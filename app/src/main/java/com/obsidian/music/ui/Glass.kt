@@ -97,3 +97,43 @@ fun AmbientBackground(accent: Color, modifier: Modifier = Modifier) {
             }
     )
 }
+
+/**
+ * Glass for panels that float above scrolling content (mini player, dropdown menu).
+ *
+ * A see-through fill lets the list's text show through and collide with the panel's own
+ * text, so this one sits on an opaque dark base and only *looks* like glass: a faint
+ * accent tint, a soft top-left sheen and a bright hairline edge.
+ */
+fun Modifier.glassPanel(
+    shape: Shape,
+    tint: Color,
+    tintAlpha: Float = 0.16f,
+    borderAlpha: Float = 0.38f,
+): Modifier = this
+    .clip(shape)
+    .background(Obsidian.Surface)
+    .background(tint.copy(alpha = tintAlpha))
+    .background(
+        Brush.linearGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.11f),
+                Color.White.copy(alpha = 0.02f),
+            ),
+            start = Offset.Zero,
+            end = Offset.Infinite,
+        )
+    )
+    .border(
+        width = 1.dp,
+        brush = Brush.linearGradient(
+            colors = listOf(
+                Color.White.copy(alpha = borderAlpha),
+                Color.White.copy(alpha = 0.05f),
+                Color.White.copy(alpha = borderAlpha * 0.4f),
+            ),
+            start = Offset.Zero,
+            end = Offset.Infinite,
+        ),
+        shape = shape,
+    )
