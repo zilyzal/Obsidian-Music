@@ -23,7 +23,7 @@
 ## Features
 
 - **Scans your phone's music automatically** through the system media library (no folder picking).
-- **Latest first** by default, so new downloads are always at the top. A glass dropdown switches the list to Favorites, A to Z, Artist, Oldest or Longest.
+- **Latest first** by default, so new downloads are always at the top. A glass dropdown switches the list to Favorites, Oldest or Longest.
 - **Favorites**: tap the star in the full player (right of the controls) to keep a song in the Favorites view.
 - **Shuffle** from the home screen or the player; skips and auto-advance follow the shuffled order.
 - **Auto-next**: a song ends, the next one starts. The queue loops at the end.

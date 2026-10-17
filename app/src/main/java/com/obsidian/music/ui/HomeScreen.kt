@@ -44,10 +44,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Shuffle
-import androidx.compose.material.icons.rounded.SortByAlpha
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.Icon
@@ -294,8 +292,6 @@ private fun MenuRow(view: LibraryView, selected: Boolean, accent: Color, onClick
 private fun LibraryView.icon(): ImageVector = when (this) {
     LibraryView.LATEST -> Icons.Rounded.Schedule
     LibraryView.FAVORITES -> Icons.Rounded.Star
-    LibraryView.TITLE -> Icons.Rounded.SortByAlpha
-    LibraryView.ARTIST -> Icons.Rounded.Person
     LibraryView.OLDEST -> Icons.Rounded.History
     LibraryView.LONGEST -> Icons.Rounded.Timer
 }
