@@ -48,6 +48,24 @@ jobs:
           name: ObsidianMusic-release
           path: app/build/outputs/apk/release/*.apk
 
+      # A push to main whose app version has no release yet publishes one: the tag is created
+      # on this commit, the notes come from release-notes/<version>.md, and the APK is attached.
+      - name: Publish release for a new version
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ver=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          if gh release view "$ver" >/dev/null 2>&1; then
+            echo "Release $ver already exists; nothing to publish."
+            exit 0
+          fi
+          notes="release-notes/${ver}.md"
+          if [ ! -f "$notes" ]; then echo "Obsidian Music ${ver}" > "$RUNNER_TEMP/notes.md"; notes="$RUNNER_TEMP/notes.md"; fi
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/ObsidianMusic.apk"
+          gh release create "$ver" "$RUNNER_TEMP/ObsidianMusic.apk" --target "$GITHUB_SHA" --title "Obsidian Music ${ver}" --notes-file "$notes"
+
       - name: Rename APK
         if: startsWith(github.ref, 'refs/tags/') || inputs.tag != ''
         run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/ObsidianMusic.apk
