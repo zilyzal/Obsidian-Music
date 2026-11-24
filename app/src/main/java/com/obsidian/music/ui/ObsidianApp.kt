@@ -6,30 +6,17 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RectangleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,22 +25,30 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.media3.common.Player
 import com.obsidian.music.PlayerViewModel
+import com.obsidian.music.data.Track
+import com.obsidian.music.ui.model.ObsidianActions
+import com.obsidian.music.ui.model.ObsidianAlbum
+import com.obsidian.music.ui.model.ObsidianTrack
+import com.obsidian.music.ui.model.ObsidianUiState
+import com.obsidian.music.ui.model.RepeatMode
+import com.obsidian.music.ui.model.EqBandState
+import com.obsidian.music.ui.model.DefaultEqBands
 
 private val audioPermission =
     if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO
@@ -76,8 +71,6 @@ fun ObsidianApp(vm: PlayerViewModel) {
     }
     // True once Android will no longer show the permission dialog: the only way forward is Settings.
     var blocked by remember { mutableStateOf(false) }
-    var expanded by remember { mutableStateOf(false) }
-    var menuOpen by remember { mutableStateOf(false) }
     var position by remember { mutableLongStateOf(0L) }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -106,16 +99,12 @@ fun ObsidianApp(vm: PlayerViewModel) {
         }
     }
 
-    BackHandler(enabled = expanded) { expanded = false }
-
     val accent = rememberAccent(state.current)
-    val current = state.current
 
-    Box(Modifier.fillMaxSize()) {
-        AmbientBackground(accent, backdrop = if (hasAudio) Backdrop.Home else Backdrop.Welcome)
-
-        when {
-            !hasAudio -> WelcomeScreen(accent = accent, blocked = blocked) {
+    when {
+        !hasAudio -> Box(Modifier.fillMaxSize()) {
+            AmbientBackground(accent, backdrop = Backdrop.Welcome)
+            WelcomeScreen(accent = accent, blocked = blocked) {
                 if (blocked) {
                     context.startActivity(
                         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
@@ -131,14 +120,19 @@ fun ObsidianApp(vm: PlayerViewModel) {
                     permissionLauncher.launch(wanted.toTypedArray())
                 }
             }
+        }
 
-            state.loading && state.library.isEmpty() ->
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = accent, strokeWidth = 3.dp, modifier = Modifier.size(32.dp))
-                }
+        state.loading && state.library.isEmpty() -> Box(Modifier.fillMaxSize()) {
+            AmbientBackground(accent, backdrop = Backdrop.Home)
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = accent, strokeWidth = 3.dp, modifier = Modifier.size(32.dp))
+            }
+        }
 
-            // Judge the whole library, so an empty Favorites list still shows the home screen.
-            state.library.isEmpty() -> Box(
+        // Judge the whole library, so an empty Favorites list still shows the home screen.
+        state.library.isEmpty() -> Box(Modifier.fillMaxSize()) {
+            AmbientBackground(accent, backdrop = Backdrop.Home)
+            Box(
                 Modifier.fillMaxSize().padding(horizontal = 32.dp),
                 contentAlignment = Alignment.Center,
             ) {
@@ -151,103 +145,107 @@ fun ObsidianApp(vm: PlayerViewModel) {
                     onAction = vm::loadLibrary,
                 )
             }
-
-            else -> HomeScreen(
-                tracks = state.tracks,
-                view = state.view,
-                current = current,
-                isPlaying = state.isPlaying,
-                shuffle = state.shuffle,
-                accent = accent,
-                bottomPadding = if (current != null) 96.dp else 0.dp,
-                menuOpen = menuOpen,
-                onMenuOpenChange = { menuOpen = it },
-                onViewChange = vm::setView,
-                onPlay = vm::play,
-                onShufflePlay = vm::shufflePlay,
-            )
         }
 
-        // Soft fade under the mini player so rows dissolve into the background instead of
-        // running right up to its edge.
-        AnimatedVisibility(
-            visible = current != null && !expanded && hasAudio && state.library.isNotEmpty(),
-            modifier = Modifier.align(Alignment.BottomCenter),
-            enter = fadeIn(tween(300)),
-            exit = fadeOut(tween(200)),
-        ) {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(176.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            0f to Color.Transparent,
-                            0.52f to Obsidian.Base.copy(alpha = 0.88f),
-                            1f to Obsidian.Base,
-                        )
-                    )
-            )
-        }
-
-        AnimatedVisibility(
-            visible = current != null && !expanded,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(bottom = 10.dp),
-            enter = slideInVertically(spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)) { it } + fadeIn(tween(200)),
-            exit = slideOutVertically(tween(220)) { it } + fadeOut(tween(160)),
-        ) {
-            current?.let { t ->
-                MiniPlayer(
-                    track = t,
-                    isPlaying = state.isPlaying,
-                    accent = accent,
-                    positionProvider = { position },
-                    durationMs = state.durationMs,
-                    onOpen = { expanded = true },
-                    onToggle = vm::togglePlayPause,
-                    onNext = vm::next,
-                    onPrevious = vm::previous,
-                )
-            }
-        }
-
-        // Dims everything while the view menu is open. The menu itself and a raised copy of the
-        // pill live in a popup window above this, so they stay bright.
-        AnimatedVisibility(
-            visible = menuOpen,
-            enter = fadeIn(tween(160)),
-            exit = fadeOut(tween(140)),
-        ) {
-            Box(Modifier.fillMaxSize().background(Obsidian.Scrim))
-        }
-
-        AnimatedVisibility(
-            visible = expanded && current != null,
-            enter = slideInVertically(spring(dampingRatio = 0.88f, stiffness = 420f)) { it } + fadeIn(tween(180)),
-            exit = slideOutVertically(tween(280)) { it } + fadeOut(tween(220)),
-        ) {
-            current?.let { t ->
-                NowPlaying(
-                    track = t,
-                    isPlaying = state.isPlaying,
-                    shuffle = state.shuffle,
-                    favorite = t.id in state.favorites,
-                    accent = accent,
-                    playingFrom = state.playingFrom ?: "Your music",
-                    durationMs = state.durationMs,
-                    positionProvider = { position },
-                    onSeek = { ms -> vm.seekTo(ms); position = ms },
-                    onToggle = vm::togglePlayPause,
-                    onNext = vm::next,
-                    onPrevious = vm::previous,
-                    onShuffle = vm::toggleShuffle,
-                    onFavorite = { vm.toggleFavorite(t) },
-                    onClose = { expanded = false },
-                )
-            }
-        }
+        else -> LiquidGlassPlayer(vm = vm, state = state, accent = accent, position = position, onSeekLocal = { position = it })
     }
+}
+
+@Composable
+private fun LiquidGlassPlayer(
+    vm: PlayerViewModel,
+    state: com.obsidian.music.PlayerUiState,
+    accent: androidx.compose.ui.graphics.Color,
+    position: Long,
+    onSeekLocal: (Long) -> Unit,
+) {
+    val context = LocalContext.current.applicationContext
+
+    // Everything below is rebuilt only when the library, stars or view actually change.
+    val trackById = remember(state.library) { state.library.associateBy { it.id } }
+    val uiTracks = remember(state.library, state.favorites) {
+        state.library.map { it.toUi(it.id in state.favorites) }
+    }
+    val uiById = remember(uiTracks) { uiTracks.associateBy { it.id } }
+    val viewTracks = remember(state.tracks, uiById) { state.tracks.mapNotNull { uiById[it.id.toString()] } }
+    val recent = remember(state.recent, uiById) { state.recent.mapNotNull { uiById[it.toString()] } }
+    val queue = remember(state.queue, uiById) { state.queue.mapNotNull { uiById[it.toString()] } }
+    val albumData = remember(state.library) { buildAlbums(state.library) }
+
+    val current = state.current?.let { t -> uiById[t.id.toString()]?.withAccent(accent) }
+
+    val artwork by produceState<Bitmap?>(null, state.current?.id) {
+        value = state.current?.let { ArtworkLoader.small(context, it) }
+    }
+
+    val uiState = ObsidianUiState(
+        tracks = uiTracks,
+        viewTracks = viewTracks,
+        libraryView = state.view,
+        favoriteCount = state.favorites.size,
+        recentlyPlayed = recent,
+        albums = albumData.first,
+        queue = queue,
+        currentTrack = current,
+        currentArtworkBitmap = artwork,
+        isPlaying = state.isPlaying,
+        positionMs = position,
+        durationMs = state.durationMs,
+        shuffleEnabled = state.shuffle,
+        repeatMode = when (state.repeatMode) {
+            Player.REPEAT_MODE_OFF -> RepeatMode.OFF
+            Player.REPEAT_MODE_ONE -> RepeatMode.ONE
+            else -> RepeatMode.ALL
+        },
+        searchQuery = state.query,
+        eqBands = remember(state.eqGains) {
+            DefaultEqBands.mapIndexed { i, band -> EqBandState(band.label, band.frequencyHz, state.eqGains.getOrElse(i) { 0f }) }
+        },
+        activeEqPreset = state.eqPreset,
+        spatialAudioEnabled = state.spatial,
+        sleepTimerRemainingMs = state.sleepRemainingMs,
+        reduceTransparency = state.reduceTransparency,
+    )
+
+    val actions = remember(vm, trackById, albumData) {
+        ObsidianActions(
+            onPlayTrack = { t -> t.id.toLongOrNull()?.let(trackById::get)?.let(vm::play) },
+            onPlayAlbum = { a: ObsidianAlbum -> a.id.toLongOrNull()?.let(vm::playAlbum) },
+            onPlayPause = vm::togglePlayPause,
+            onNext = vm::next,
+            onPrevious = vm::previous,
+            onSeekToMs = { ms -> vm.seekTo(ms); onSeekLocal(ms) },
+            onToggleShuffle = vm::toggleShuffle,
+            onShuffleAll = vm::shufflePlay,
+            onCycleRepeat = vm::cycleRepeat,
+            onToggleFavorite = { id -> id.toLongOrNull()?.let(trackById::get)?.let(vm::toggleFavorite) },
+            onSearchQueryChange = vm::setQuery,
+            onJumpToQueueIndex = vm::jumpToQueueIndex,
+            onRemoveFromQueue = vm::removeFromQueue,
+            onUpdateEqBand = { index, gain -> vm.setEqBand(index, gain) },
+            onApplyEqPreset = { preset -> vm.applyEqPreset(preset.name, preset.gains) },
+            onToggleSpatialAudio = vm::setSpatial,
+            onSetSleepTimerMinutes = vm::setSleepTimer,
+            onToggleReduceTransparency = vm::setReduceTransparency,
+            onSelectLibraryView = vm::setView,
+        )
+    }
+
+    val trackSlot: @Composable (ObsidianTrack, Modifier) -> Unit = remember(trackById) {
+        { t, mod -> Artwork(t.id.toLongOrNull()?.let(trackById::get), RectangleShape, mod) }
+    }
+    val heroSlot: @Composable (ObsidianTrack, Modifier) -> Unit = remember(trackById) {
+        { t, mod -> Artwork(t.id.toLongOrNull()?.let(trackById::get), RectangleShape, mod, large = true) }
+    }
+    val albumSlot: @Composable (ObsidianAlbum, Modifier) -> Unit = remember(albumData) {
+        { a, mod -> Artwork(albumData.second[a.id], RectangleShape, mod) }
+    }
+
+    ObsidianRootShell(
+        state = uiState,
+        actions = actions,
+        trackArtworkSlot = trackSlot,
+        albumArtworkSlot = albumSlot,
+        heroArtworkSlot = heroSlot,
+    )
 }
