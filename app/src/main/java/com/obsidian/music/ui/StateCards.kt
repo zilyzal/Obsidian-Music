@@ -57,8 +57,8 @@ fun StateCard(
     title: String,
     body: String,
     accent: Color,
-    actionLabel: String,
-    onAction: () -> Unit,
+    actionLabel: String?,
+    onAction: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -88,7 +88,9 @@ fun StateCard(
             textAlign = TextAlign.Center,
             modifier = Modifier.widthIn(max = 250.dp),
         )
-        Spacer(Modifier.height(26.dp))
-        BrightButton(actionLabel, onAction)
+        if (actionLabel != null && onAction != null) {
+            Spacer(Modifier.height(26.dp))
+            BrightButton(actionLabel, onAction)
+        }
     }
 }

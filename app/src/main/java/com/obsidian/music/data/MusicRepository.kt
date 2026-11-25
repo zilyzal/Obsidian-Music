@@ -20,18 +20,15 @@ class MusicRepository(private val context: Context) {
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         }
 
-        val hasBitrate = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
-        val projection = buildList {
-            add(MediaStore.Audio.Media._ID)
-            add(MediaStore.Audio.Media.TITLE)
-            add(MediaStore.Audio.Media.ARTIST)
-            add(MediaStore.Audio.Media.ALBUM)
-            add(MediaStore.Audio.Media.ALBUM_ID)
-            add(MediaStore.Audio.Media.DURATION)
-            add(MediaStore.Audio.Media.DATE_ADDED)
-            add(MediaStore.Audio.Media.MIME_TYPE)
-            if (hasBitrate) add(MediaStore.Audio.Media.BITRATE)
-        }.toTypedArray()
+        val projection = arrayOf(
+            MediaStore.Audio.Media._ID,
+            MediaStore.Audio.Media.TITLE,
+            MediaStore.Audio.Media.ARTIST,
+            MediaStore.Audio.Media.ALBUM,
+            MediaStore.Audio.Media.ALBUM_ID,
+            MediaStore.Audio.Media.DURATION,
+            MediaStore.Audio.Media.DATE_ADDED,
+        )
 
         // Real music only: skips ringtones, notification sounds and clips under 30 seconds.
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND " +
@@ -47,8 +44,6 @@ class MusicRepository(private val context: Context) {
             val albumIdCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
             val durCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
             val addedCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
-            val mimeCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE)
-            val bitrateCol = if (hasBitrate) c.getColumnIndex(MediaStore.Audio.Media.BITRATE) else -1
 
             while (c.moveToNext()) {
                 val id = c.getLong(idCol)
@@ -62,8 +57,6 @@ class MusicRepository(private val context: Context) {
                     durationMs = c.getLong(durCol),
                     dateAddedSec = c.getLong(addedCol),
                     uri = ContentUris.withAppendedId(collection, id),
-                    mime = c.getString(mimeCol).orEmpty(),
-                    bitrateKbps = if (bitrateCol >= 0) (c.getInt(bitrateCol) / 1000).coerceAtLeast(0) else 0,
                 )
             }
         }

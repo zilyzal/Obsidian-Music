@@ -15,3 +15,14 @@ fun List<Track>.arranged(view: LibraryView, favorites: Set<Long>): List<Track> =
     LibraryView.OLDEST -> reversed()
     LibraryView.LONGEST -> sortedByDescending { it.durationMs }
 }
+
+/** Live search across title, artist and album. */
+fun List<Track>.matching(query: String): List<Track> {
+    val q = query.trim()
+    if (q.isEmpty()) return this
+    return filter {
+        it.title.contains(q, ignoreCase = true) ||
+            it.artist.contains(q, ignoreCase = true) ||
+            it.album.contains(q, ignoreCase = true)
+    }
+}

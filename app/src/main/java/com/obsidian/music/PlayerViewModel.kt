@@ -2,23 +2,23 @@ package com.obsidian.music
 
 import android.app.Application
 import android.content.ComponentName
-import android.os.Bundle
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.session.MediaController
-import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.obsidian.music.data.FavoritesStore
 import com.obsidian.music.data.LibraryView
 import com.obsidian.music.data.MusicRepository
-import com.obsidian.music.data.PlayerPrefs
 import com.obsidian.music.data.Track
 import com.obsidian.music.data.arranged
+import com.obsidian.music.data.matching
 import com.obsidian.music.playback.PlaybackService
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -32,57 +32,53 @@ data class PlayerUiState(
     val loading: Boolean = true,
     /** Every song on the phone, newest first. */
     val library: List<Track> = emptyList(),
-    /** What the Tracks tab shows: the library arranged by [view]. */
+    /** What the home list shows: the library arranged by [view]. */
     val tracks: List<Track> = emptyList(),
     val view: LibraryView = LibraryView.LATEST,
     val favorites: Set<Long> = emptySet(),
     val current: Track? = null,
     val isPlaying: Boolean = false,
     val shuffle: Boolean = false,
-    /** One of [Player.REPEAT_MODE_OFF], [Player.REPEAT_MODE_ONE], [Player.REPEAT_MODE_ALL]. */
-    val repeatMode: Int = Player.REPEAT_MODE_ALL,
     val durationMs: Long = 0L,
-    /** Name of the view the queue was started from ("Latest", "Favorites", ...). */
+    /** Name of the view the queue was started from ("Latest", "Favorites", ...), shown in the player. */
     val playingFrom: String? = null,
-    /** Ids of the songs in the running queue, in order. */
-    val queue: List<Long> = emptyList(),
-    /** Most recently started songs, newest first. */
-    val recent: List<Long> = emptyList(),
+    /** Live search text; blank shows the whole view. */
     val query: String = "",
-    val eqGains: List<Float> = listOf(0.28f, 0.14f, -0.06f, 0.22f, 0.34f),
-    val eqPreset: String = "Obsidian",
-    val spatial: Boolean = false,
-    val sleepRemainingMs: Long? = null,
-    val reduceTransparency: Boolean = false,
+    /** True while the current song loops instead of the whole queue. */
+    val repeatOne: Boolean = false,
+    /** The next songs in play order (shuffle-aware), for the Up Next sheet. */
+    val upNext: List<QueueEntry> = emptyList(),
+    /** Wall-clock time the sleep timer pauses playback, or null. */
+    val sleepAtMs: Long? = null,
+    /** Pause when the current song ends. */
+    val sleepAfterSong: Boolean = false,
+    /** A short confirmation shown in a glass toast ("Playing next"), with an id so repeats re-show. */
+    val toast: Toast? = null,
 ) {
     fun arrangedWith(
         library: List<Track> = this.library,
         view: LibraryView = this.view,
         favorites: Set<Long> = this.favorites,
+        query: String = this.query,
     ): PlayerUiState = copy(
         library = library,
         view = view,
         favorites = favorites,
-        tracks = library.arranged(view, favorites),
+        query = query,
+        tracks = library.arranged(view, favorites).matching(query),
     )
 }
+
+data class QueueEntry(val track: Track, val windowIndex: Int)
+
+data class Toast(val id: Long, val text: String)
 
 class PlayerViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repository = MusicRepository(app)
     private val favoritesStore = FavoritesStore(app)
-    private val prefs = PlayerPrefs(app)
 
-    private val _state = MutableStateFlow(
-        PlayerUiState(
-            favorites = favoritesStore.load(),
-            recent = prefs.recent,
-            eqGains = prefs.eqGains,
-            eqPreset = prefs.eqPreset,
-            spatial = prefs.spatial,
-            reduceTransparency = prefs.reduceTransparency,
-        )
-    )
+    private val _state = MutableStateFlow(PlayerUiState(favorites = favoritesStore.load()))
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
 
     private var controllerFuture: ListenableFuture<MediaController>? = null
@@ -94,12 +90,22 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
     /** Library by id, so every player event finds the current song without scanning the list. */
     private var libraryById: Map<Long, Track> = emptyMap()
 
-    private var lastRecordedId: Long? = null
     private var sleepJob: Job? = null
 
     private val playerListener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) {
-            syncFromPlayer(player, timelineChanged = events.contains(Player.EVENT_TIMELINE_CHANGED))
+            syncFromPlayer(player)
+        }
+
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            // "End of song" sleep: the song finished on its own, so stop before the next one plays.
+            if (_state.value.sleepAfterSong &&
+                (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO || reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT)
+            ) {
+                controller?.pause()
+                controller?.seekTo(0L)
+                _state.update { it.copy(sleepAfterSong = false) }
+            }
         }
     }
 
@@ -110,10 +116,7 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
                 val c = runCatching { future.get() }.getOrNull() ?: return@addListener
                 controller = c
                 c.addListener(playerListener)
-                syncFromPlayer(c, timelineChanged = true)
-                // The service forgets effects when it restarts, so hand them over on every connect.
-                pushEqualizer(_state.value.eqGains)
-                pushSpatial(_state.value.spatial)
+                syncFromPlayer(c)
             }, ContextCompat.getMainExecutor(app))
         }
     }
@@ -130,7 +133,7 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
             }
             libraryById = library.associateBy { it.id }
             _state.update { it.arrangedWith(library = library).copy(loading = false) }
-            controller?.let { syncFromPlayer(it, timelineChanged = false) }
+            controller?.let { syncFromPlayer(it) }
         }
     }
 
@@ -139,8 +142,11 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun setQuery(query: String) {
-        _state.update { it.copy(query = query) }
+        _state.update { it.arrangedWith(query = query) }
     }
+
+    private fun sourceLabel(s: PlayerUiState): String =
+        if (s.query.isNotBlank()) "Search: ${s.query.trim()}" else s.view.label
 
     fun toggleFavorite(track: Track) {
         _state.update { s ->
@@ -150,51 +156,98 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
         favoritesStore.save(_state.value.favorites)
     }
 
-    /**
-     * Tap a song: queue the list on the Tracks tab (Latest, Favorites, ...) and start from that
-     * song. A song outside that list (say, a favourite-only view) queues the whole library.
-     */
+    /** Tap a song: queue the list as shown (Latest, Favorites, ...) and start from that song. */
     fun play(track: Track) {
-        val s = _state.value
-        val inView = s.tracks.any { it.id == track.id }
-        startQueue(if (inView) s.tracks else s.library, track, if (inView) s.view.label else LibraryView.LATEST.label)
-    }
-
-    fun playAlbum(albumId: Long) {
-        val tracks = _state.value.library.filter { it.albumId == albumId }
-        val first = tracks.firstOrNull() ?: return
         val c = controller ?: return
-        c.shuffleModeEnabled = false
-        startQueue(tracks, first, tracks.first().album.ifBlank { "Album" })
-    }
-
-    private fun startQueue(tracks: List<Track>, from: Track, label: String) {
-        val c = controller ?: return
-        val index = tracks.indexOfFirst { it.id == from.id }
+        val tracks = _state.value.tracks
+        val index = tracks.indexOfFirst { it.id == track.id }
         if (index < 0) return
         val ids = tracks.map { it.id }
-        // Reuse the running queue only if it is exactly the list we want.
+        // Reuse the running queue only if it is exactly the list on screen.
         if (queueIds != ids || c.mediaItemCount != ids.size) {
             c.setMediaItems(tracks.map(::toMediaItem), index, 0L)
             queueIds = ids
         } else {
             c.seekTo(index, 0L)
         }
-        _state.update { it.copy(playingFrom = label) }
+        _state.update { it.copy(playingFrom = sourceLabel(it)) }
         c.prepare()
         c.play()
     }
 
-    /** Turns shuffle on and starts a random song from the list on the Tracks tab. */
+    /** Long-press a song: it plays right after the current one (or now, if nothing is queued). */
+    fun playNext(track: Track) {
+        val c = controller ?: return
+        if (c.mediaItemCount == 0) {
+            play(track)
+            return
+        }
+        c.addMediaItem(c.currentMediaItemIndex + 1, toMediaItem(track))
+        // The queue no longer matches any list on screen; the next tap on a row rebuilds it.
+        queueIds = emptyList()
+        showToast("Playing next: ${track.title}")
+    }
+
+    /** Tap a song in Up Next: jump straight to it. */
+    fun jumpTo(entry: QueueEntry) {
+        val c = controller ?: return
+        if (entry.windowIndex < c.mediaItemCount) {
+            c.seekTo(entry.windowIndex, 0L)
+            c.play()
+        }
+    }
+
+    fun toggleRepeatOne() {
+        val c = controller ?: return
+        c.repeatMode = if (c.repeatMode == Player.REPEAT_MODE_ONE) Player.REPEAT_MODE_ALL else Player.REPEAT_MODE_ONE
+    }
+
+    /** Pause after [minutes]; 0 cancels. */
+    fun setSleepTimer(minutes: Int) {
+        sleepJob?.cancel()
+        sleepJob = null
+        if (minutes <= 0) {
+            _state.update { it.copy(sleepAtMs = null, sleepAfterSong = false) }
+            return
+        }
+        val at = System.currentTimeMillis() + minutes * 60_000L
+        _state.update { it.copy(sleepAtMs = at, sleepAfterSong = false) }
+        sleepJob = viewModelScope.launch {
+            delay(minutes * 60_000L)
+            controller?.pause()
+            _state.update { it.copy(sleepAtMs = null) }
+        }
+        showToast("Sleep timer: $minutes min")
+    }
+
+    fun setSleepAfterSong() {
+        sleepJob?.cancel()
+        sleepJob = null
+        _state.update { it.copy(sleepAtMs = null, sleepAfterSong = true) }
+        showToast("Stopping after this song")
+    }
+
+    private var toastId = 0L
+
+    private fun showToast(text: String) {
+        val t = Toast(++toastId, text)
+        _state.update { it.copy(toast = t) }
+        viewModelScope.launch {
+            delay(2_200L)
+            _state.update { if (it.toast?.id == t.id) it.copy(toast = null) else it }
+        }
+    }
+
+    /** Turns shuffle on and starts a random song from the list on screen. */
     fun shufflePlay() {
         val c = controller ?: return
-        val tracks = _state.value.tracks.ifEmpty { _state.value.library }
+        val tracks = _state.value.tracks
         if (tracks.isEmpty()) return
         val start = tracks.indices.random()
         c.shuffleModeEnabled = true
         c.setMediaItems(tracks.map(::toMediaItem), start, 0L)
         queueIds = tracks.map { it.id }
-        _state.update { it.copy(playingFrom = it.view.label) }
+        _state.update { it.copy(playingFrom = sourceLabel(it)) }
         c.prepare()
         c.play()
     }
@@ -202,16 +255,6 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleShuffle() {
         val c = controller ?: return
         c.shuffleModeEnabled = !c.shuffleModeEnabled
-    }
-
-    /** Off -> loop all -> repeat one -> off. */
-    fun cycleRepeat() {
-        val c = controller ?: return
-        c.repeatMode = when (c.repeatMode) {
-            Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
-            Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
-            else -> Player.REPEAT_MODE_OFF
-        }
     }
 
     fun togglePlayPause() {
@@ -229,63 +272,6 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
 
     fun seekTo(positionMs: Long) { controller?.seekTo(positionMs) }
 
-    fun jumpToQueueIndex(index: Int) {
-        val c = controller ?: return
-        if (index !in 0 until c.mediaItemCount) return
-        c.seekTo(index, 0L)
-        c.play()
-    }
-
-    fun removeFromQueue(index: Int) {
-        val c = controller ?: return
-        if (index !in 0 until c.mediaItemCount || c.mediaItemCount <= 1) return
-        c.removeMediaItem(index)
-    }
-
-    fun setEqBand(index: Int, gain: Float) {
-        val next = _state.value.eqGains.toMutableList().also { if (index in it.indices) it[index] = gain }
-        applyEq(next, "Custom")
-    }
-
-    fun applyEqPreset(name: String, gains: List<Float>) = applyEq(gains, name)
-
-    private fun applyEq(gains: List<Float>, preset: String) {
-        _state.update { it.copy(eqGains = gains, eqPreset = preset) }
-        prefs.eqGains = gains
-        prefs.eqPreset = preset
-        pushEqualizer(gains)
-    }
-
-    fun setSpatial(on: Boolean) {
-        _state.update { it.copy(spatial = on) }
-        prefs.spatial = on
-        pushSpatial(on)
-    }
-
-    fun setReduceTransparency(on: Boolean) {
-        _state.update { it.copy(reduceTransparency = on) }
-        prefs.reduceTransparency = on
-    }
-
-    /** Pauses playback after [minutes]; null cancels the timer. */
-    fun setSleepTimer(minutes: Int?) {
-        sleepJob?.cancel()
-        if (minutes == null) {
-            _state.update { it.copy(sleepRemainingMs = null) }
-            return
-        }
-        sleepJob = viewModelScope.launch {
-            var remaining = minutes * 60_000L
-            while (remaining > 0L) {
-                _state.update { it.copy(sleepRemainingMs = remaining) }
-                delay(1_000L)
-                remaining -= 1_000L
-            }
-            controller?.pause()
-            _state.update { it.copy(sleepRemainingMs = null) }
-        }
-    }
-
     fun currentPositionMs(): Long = controller?.currentPosition ?: 0L
 
     /**
@@ -300,44 +286,36 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun pushEqualizer(gains: List<Float>) {
-        val c = controller ?: return
-        val args = Bundle().apply { putFloatArray(PlaybackService.KEY_GAINS, gains.toFloatArray()) }
-        c.sendCustomCommand(SessionCommand(PlaybackService.CMD_EQ, Bundle.EMPTY), args)
-    }
-
-    private fun pushSpatial(on: Boolean) {
-        val c = controller ?: return
-        val args = Bundle().apply { putBoolean(PlaybackService.KEY_ENABLED, on) }
-        c.sendCustomCommand(SessionCommand(PlaybackService.CMD_SPATIAL, Bundle.EMPTY), args)
-    }
-
-    private fun readQueue(p: Player): List<Long> =
-        List(p.mediaItemCount) { p.getMediaItemAt(it).mediaId.toLongOrNull() ?: -1L }
-
-    private fun syncFromPlayer(p: Player, timelineChanged: Boolean) {
+    private fun syncFromPlayer(p: Player) {
         val currentId = p.currentMediaItem?.mediaId?.toLongOrNull()
-        if (timelineChanged) queueIds = readQueue(p)
-
-        var recent = _state.value.recent
-        if (currentId != null && currentId != lastRecordedId) {
-            lastRecordedId = currentId
-            recent = (listOf(currentId) + recent.filter { it != currentId }).take(MAX_RECENT)
-            prefs.recent = recent
-        }
-
         _state.update { s ->
             s.copy(
                 // Look in the whole library so the song stays "current" even when a filter hides it.
                 current = currentId?.let { id -> libraryById[id] } ?: s.current,
                 isPlaying = p.isPlaying,
                 shuffle = p.shuffleModeEnabled,
-                repeatMode = p.repeatMode,
                 durationMs = p.duration.takeIf { it > 0 } ?: s.current?.durationMs ?: 0L,
-                queue = if (timelineChanged) queueIds else s.queue,
-                recent = recent,
+                repeatOne = p.repeatMode == Player.REPEAT_MODE_ONE,
+                upNext = upNextOf(p),
             )
         }
+    }
+
+    private val window = Timeline.Window()
+
+    /** Walks the timeline in play order (shuffle included) from the current song, up to 40 songs. */
+    private fun upNextOf(p: Player): List<QueueEntry> {
+        val timeline = p.currentTimeline
+        if (timeline.isEmpty) return emptyList()
+        val out = ArrayList<QueueEntry>()
+        var i = p.currentMediaItemIndex
+        while (out.size < 40) {
+            i = timeline.getNextWindowIndex(i, Player.REPEAT_MODE_OFF, p.shuffleModeEnabled)
+            if (i == C.INDEX_UNSET) break
+            val id = timeline.getWindow(i, window).mediaItem.mediaId.toLongOrNull() ?: continue
+            libraryById[id]?.let { out += QueueEntry(it, i) }
+        }
+        return out
     }
 
     private fun toMediaItem(t: Track): MediaItem =
@@ -360,9 +338,5 @@ class PlayerViewModel(app: Application) : AndroidViewModel(app) {
         controllerFuture?.let { MediaController.releaseFuture(it) }
         controller = null
         super.onCleared()
-    }
-
-    private companion object {
-        const val MAX_RECENT = 12
     }
 }

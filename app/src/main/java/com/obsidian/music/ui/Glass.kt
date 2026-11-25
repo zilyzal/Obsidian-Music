@@ -80,7 +80,7 @@ fun Modifier.glassPanel(
     .border(width = 1.dp, brush = edgeBrush(edge), shape = shape)
 
 /** Which set of glass shards sits behind the screen. */
-enum class Backdrop { Home, Player, Welcome }
+enum class AmbientScene { Home, Player, Welcome }
 
 /**
  * Deep obsidian base with two soft glows tinted by the current song's artwork and a few
@@ -88,7 +88,7 @@ enum class Backdrop { Home, Player, Welcome }
  * animates forever, so an idle screen costs no battery.
  */
 @Composable
-fun AmbientBackground(accent: Color, modifier: Modifier = Modifier, backdrop: Backdrop = Backdrop.Home) {
+fun AmbientBackground(accent: Color, modifier: Modifier = Modifier, backdrop: AmbientScene = AmbientScene.Home) {
     val glowA by animateColorAsState(accent, tween(900), label = "glowA")
     val glowB by animateColorAsState(
         lerp(Obsidian.Glacier, accent, 0.45f),
@@ -102,14 +102,14 @@ fun AmbientBackground(accent: Color, modifier: Modifier = Modifier, backdrop: Ba
             .drawBehind {
                 val big = size.maxDimension
                 val (ax, ay, ar) = when (backdrop) {
-                    Backdrop.Home -> Triple(0.12f, 0.06f, 0.80f)
-                    Backdrop.Player -> Triple(0.50f, 0.30f, 0.72f)
-                    Backdrop.Welcome -> Triple(0.50f, 0.20f, 0.70f)
+                    AmbientScene.Home -> Triple(0.12f, 0.06f, 0.80f)
+                    AmbientScene.Player -> Triple(0.50f, 0.30f, 0.72f)
+                    AmbientScene.Welcome -> Triple(0.50f, 0.20f, 0.70f)
                 }
                 val (bx, by, br) = when (backdrop) {
-                    Backdrop.Home -> Triple(0.96f, 0.90f, 0.72f)
-                    Backdrop.Player -> Triple(1.00f, 1.00f, 0.80f)
-                    Backdrop.Welcome -> Triple(0.96f, 0.92f, 0.72f)
+                    AmbientScene.Home -> Triple(0.96f, 0.90f, 0.72f)
+                    AmbientScene.Player -> Triple(1.00f, 1.00f, 0.80f)
+                    AmbientScene.Welcome -> Triple(0.96f, 0.92f, 0.72f)
                 }
                 drawRect(
                     Brush.radialGradient(
@@ -130,17 +130,17 @@ fun AmbientBackground(accent: Color, modifier: Modifier = Modifier, backdrop: Ba
                 val tint = Color(0xFFC9B8FF)
                 fun at(x: Float, y: Float) = Offset(x * s, y * s)
                 when (backdrop) {
-                    Backdrop.Home -> {
+                    AmbientScene.Home -> {
                         shard(listOf(at(226f, 0f), at(390f, 0f), at(390f, 262f), at(316f, 148f)), tint, 0.27f, 1f)
                         shard(listOf(at(292f, 0f), at(390f, 0f), at(390f, 118f)), tint, 0.27f, 1f)
                         shard(listOf(at(316f, 148f), at(390f, 262f), at(350f, 226f)), tint, 0.27f, 0.7f)
                     }
-                    Backdrop.Player -> {
+                    AmbientScene.Player -> {
                         val t = Color(0xFFE7D6FF)
                         shard(listOf(at(0f, 150f), at(120f, 60f), at(150f, 320f), at(0f, 420f)), t, 0.25f, 1f)
                         shard(listOf(at(390f, 120f), at(270f, 230f), at(390f, 380f)), t, 0.25f, 1f)
                     }
-                    Backdrop.Welcome -> {
+                    AmbientScene.Welcome -> {
                         shard(listOf(at(0f, 0f), at(150f, 0f), at(0f, 230f)), tint, 0.25f, 1f)
                         shard(listOf(at(390f, 250f), at(390f, 520f), at(300f, 380f)), tint, 0.25f, 1f)
                     }
