@@ -3,12 +3,12 @@
 <h1 align="center">Obsidian Music</h1>
 
 <p align="center">
-  A simple, beautiful local music player for Android with a glass interface.<br>
+  A simple, beautiful local music player for Android with a true liquid-glass interface.<br>
   It plays the songs already on your phone, newest first, and stays out of your way.
 </p>
 
 <p align="center">
-  <a href="https://github.com/zilyzal/Obsidian-Music/releases/download/1.2.0/ObsidianMusic.apk"><b>Download the APK</b></a>
+  <a href="https://github.com/zilyzal/Obsidian-Music/releases/download/1.4.0/ObsidianMusic.apk"><b>Download the APK</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/zilyzal/Obsidian-Music/releases">All releases</a>
 </p>
@@ -28,8 +28,10 @@
 - **Shuffle** from the home screen or the player; skips and auto-advance follow the shuffled order.
 - **Auto-next**: a song ends, the next one starts. The queue loops at the end.
 - **Background playback**, **lockscreen controls**, and a **media notification** (play/pause, next, previous, seek) via a Media3 `MediaSessionService`. Headset and Bluetooth buttons work too.
+- **Search** titles, artists and albums; **Up Next** queue; long-press for **Play next**; **repeat one**; **sleep timer**.
+- **True liquid glass** (Android 13+): floating controls refract, blur and saturate what's behind them, with a specular rim; frosted fallback on older phones.
 - **Glass UI** over a dark obsidian base, set in Sora and Manrope. Glow and accent colours follow the current album art.
-- **Fluid motion**: spring press feedback, a view menu that dims the screen, a mini player with previous/play/next and a progress ring that expands into a full player, swipe down to dismiss, breathing artwork, scrubbable seek bar.
+- **Fluid motion**: glass that swells under your finger, the cover flying from the mini player into the full player, swipe the cover or the mini player to skip, a glass seek thumb that magnifies the bar, springy menus and view cross-dissolves.
 - **Clear first launch**: a short screen explains the two permissions before Android asks for them.
 - **Light on battery**: one media query on open, no polling in the background, position updates only while a song is playing and the screen is on, row artwork decoded at list size, and no looping animations except the small equalizer on the playing row.
 
@@ -52,7 +54,7 @@ Minimum Android version: 8.0 (API 26). Target: Android 15 (API 35).
 
 ## Stack
 
-Kotlin, Jetpack Compose, Material 3 (theme only), AndroidX Media3 (ExoPlayer + MediaSession), AndroidX Palette.
+Kotlin, Jetpack Compose, Material 3 (theme only), AndroidX Media3 (ExoPlayer + MediaSession), AndroidX Palette, [Kyant Backdrop](https://github.com/Kyant0/AndroidLiquidGlass) for liquid glass.
 
 ## Project layout
 
